@@ -128,6 +128,30 @@
               <button id="live-toggle" class="badge badge-success cursor-pointer hover:opacity-80"
                 onclick="toggleLiveRefresh()">Live</button>
             </div>
+
+            <!-- Filter controls -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              <input type="text" id="symbol-filter" placeholder="Search symbol..."
+                class="input input-sm input-bordered w-40" onkeyup="filterSignals()">
+              <select id="tf-filter" class="select select-sm select-bordered w-32" onchange="filterSignals()">
+                <option value="">All TF</option>
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+                <option value="15m">15m</option>
+                <option value="1H">1H</option>
+                <option value="4H">4H</option>
+              </select>
+              <select id="comp-filter" class="select select-sm select-bordered w-40" onchange="filterSignals()">
+                <option value="">All Components</option>
+                <option value="breakout">breakout</option>
+                <option value="breakdown">breakdown</option>
+                <option value="momentum">momentum</option>
+                <option value="supertrend">supertrend</option>
+                <option value="ema">ema</option>
+              </select>
+              <button class="btn btn-sm btn-ghost" onclick="clearFilters()">Clear</button>
+            </div>
+
             <div class="overflow-x-auto">
               <table class="table table-zebra w-full">
                 <thead>
@@ -339,6 +363,48 @@
         htmx.trigger(tbody, 'htmx:load');
       }
     }
+
+    // Filter signals
+    function filterSignals() {
+      const symbolFilter = document.getElementById('symbol-filter').value.toUpperCase();
+      const tfFilter = document.getElementById('tf-filter').value;
+      const compFilter = document.getElementById('comp-filter').value;
+      const tbody = document.getElementById('signals-tbody');
+      const rows = tbody.getElementsByTagName('tr');
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.getElementsByTagName('td');
+        if (cells.length === 0) continue; // Skip header or empty rows
+
+        // Get cell values
+        const symbol = cells[2]?.textContent || '';
+        const tf = cells[3]?.textContent || '';
+        const components = cells[7]?.textContent || '';
+
+        // Apply filters
+        let show = true;
+        if (symbolFilter && !symbol.includes(symbolFilter)) show = false;
+        if (tfFilter && tf !== tfFilter) show = false;
+        if (compFilter && !components.includes(compFilter)) show = false;
+
+        row.style.display = show ? '' : 'none';
+      }
+    }
+
+    function clearFilters() {
+      document.getElementById('symbol-filter').value = '';
+      document.getElementById('tf-filter').value = '';
+      document.getElementById('comp-filter').value = '';
+      filterSignals();
+    }
+
+    // Re-filter after HTMX updates
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (evt.detail.target.id === 'signals-tbody') {
+        filterSignals();
+      }
+    });
   </script>
 </body>
 
