@@ -1,0 +1,19 @@
+<tr class="hover:bg-base-300 cursor-pointer" hx-get="/partials/details?bucket=signals&ts={{ ev.ts }}"
+  hx-target="#drawer" hx-swap="innerHTML" hx-trigger="click">
+  <td class="text-xs text-gray-400">{{ ev.ts|ago }}</td>
+  <td>
+    {% if ev.side == 'buy' or ev.side == 'long' %}
+    <span class="badge badge-success badge-sm">LONG</span>
+    {% elif ev.side == 'sell' or ev.side == 'short' %}
+    <span class="badge badge-error badge-sm">SHORT</span>
+    {% else %}
+    <span class="badge badge-ghost badge-sm">{{ ev.side or '-' }}</span>
+    {% endif %}
+  </td>
+  <td class="font-medium">{{ ev.symbol or '-' }}</td>
+  <td class="text-xs">{{ ev.timeframe or '-' }}</td>
+  <td class="num">{{ "%.2f"|format(ev.score or 0) }}</td>
+  <td class="num">{{ "%.0f"|format((ev.prob or 0) * 100) }}%</td>
+  <td class="num text-xs">{{ "%.4f"|format(ev.price or 0) if ev.price else '-' }}</td>
+  <td class="text-xs text-gray-400 components">{{ (ev.components or [])|join(', ') or '-' }}</td>
+</tr>

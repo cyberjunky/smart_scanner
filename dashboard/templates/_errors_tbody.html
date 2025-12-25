@@ -1,12 +1,14 @@
 {% if errors and errors|length %}
-  {% for e in errors %}
-    <tr>
-      <td>{{ e.ts or "-" }}</td>
-      <td>{{ e.stage or "-" }}</td>
-      <td>{{ e.symbol or "-" }}</td>
-      <td class="text-red-400">{{ e.error or e.msg or "-" }}</td>
-    </tr>
-  {% endfor %}
+{% for e in errors %}
+<tr class="hover:bg-base-300">
+  <td class="text-xs text-gray-400">{{ e.ts|ago }}</td>
+  <td>{{ e.stage or "-" }}</td>
+  <td>{{ e.symbol or "-" }}</td>
+  <td class="text-red-400 text-xs">{{ e.error or e.msg or "-" }}</td>
+</tr>
+{% endfor %}
 {% else %}
-  <tr><td colspan="4" class="text-gray-500">No errors 🎉</td></tr>
+<tr>
+  <td colspan="4" class="text-gray-500">No errors 🎉</td>
+</tr>
 {% endif %}

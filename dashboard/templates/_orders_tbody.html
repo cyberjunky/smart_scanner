@@ -1,12 +1,27 @@
 {% if orders and orders|length %}
-  {% for o in orders %}
-    <tr>
-      <td>{{ o.ts or o.time or "-" }}</td>
-      <td>{{ o.kind or o.type or "-" }}</td>
-      <td>{{ o.symbol or "-" }}</td>
-      <td>{{ o.msg or o.details or "-" }}</td>
-    </tr>
-  {% endfor %}
+{% for o in orders %}
+<tr class="hover:bg-base-300">
+  <td class="text-xs text-gray-400">{{ o.ts|ago }}</td>
+  <td>
+    <span class="badge badge-ghost badge-sm">{{ o.kind or o.type or "-" }}</span>
+  </td>
+  <td class="font-medium">{{ o.symbol or o.instId or "-" }}</td>
+  <td>
+    {% if o.side == 'buy' or o.side == 'long' %}
+    <span class="text-success">LONG</span>
+    {% elif o.side == 'sell' or o.side == 'short' %}
+    <span class="text-error">SHORT</span>
+    {% else %}
+    {{ o.side or "-" }}
+    {% endif %}
+  </td>
+  <td class="num text-xs">{{ "%.2f"|format(o.notional or o.size or 0) if (o.notional or o.size) else "-" }}</td>
+  <td class="num text-xs">{{ "%.4f"|format(o.price or 0) if o.price else "-" }}</td>
+  <td class="text-xs text-gray-400">{{ o.msg or o.reason or o.details or "-" }}</td>
+</tr>
+{% endfor %}
 {% else %}
-  <tr><td colspan="4" class="text-gray-500">No orders yet.</td></tr>
+<tr>
+  <td colspan="7" class="text-gray-500">No orders yet.</td>
+</tr>
 {% endif %}
