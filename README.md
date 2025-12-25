@@ -137,14 +137,9 @@ python -m smart_scanner.learn backfill \
 
 ```mermaid
 flowchart LR
-    A["Universe<br/>(ws_universe)"] --> B["Candles<br/>(ws_klines)"]
-    B --> C["Signals<br/>(signal_engine)"]
-    C --> D["Trader<br/>(trader)"]
-    
-    A -.-> |"Rank by 24h<br/>quote volume"| A
-    B -.-> |"Rolling bars<br/>per symbol/tf"| B
-    C -.-> |"Strategies +<br/>bandit weights"| C
-    D -.-> |"Paper fills<br/>or live orders"| D
+    Universe["Universe<br/>(ws_universe)"] --> Candles["Candles<br/>(ws_klines)"]
+    Candles --> Signals["Signals<br/>(signal_engine)"]
+    Signals --> Trader["Trader<br/>(trader)"]
 ```
 
 1. **Universe**: Streams tickers, ranks by 24h volume, applies liquidity gates
