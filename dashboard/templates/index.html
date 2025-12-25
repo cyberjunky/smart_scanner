@@ -125,7 +125,8 @@
           <div class="card-body">
             <div class="flex justify-between items-center">
               <h2 class="card-title">Signals</h2>
-              <span class="badge">Live</span>
+              <button id="live-toggle" class="badge badge-success cursor-pointer hover:opacity-80"
+                onclick="toggleLiveRefresh()">Live</button>
             </div>
             <div class="overflow-x-auto">
               <table class="table table-zebra w-full">
@@ -314,6 +315,30 @@
     document.querySelectorAll('th.sortable').forEach(th => {
       th.addEventListener('click', () => sortTable(th));
     });
+
+    // Live refresh toggle
+    let isPaused = false;
+    function toggleLiveRefresh() {
+      const btn = document.getElementById('live-toggle');
+      const tbody = document.getElementById('signals-tbody');
+      isPaused = !isPaused;
+
+      if (isPaused) {
+        // Pause: stop HTMX polling
+        btn.textContent = 'Paused';
+        btn.classList.remove('badge-success');
+        btn.classList.add('badge-warning');
+        htmx.trigger(tbody, 'htmx:abort');
+        tbody.setAttribute('hx-trigger', 'none');
+      } else {
+        // Resume: restart HTMX polling
+        btn.textContent = 'Live';
+        btn.classList.remove('badge-warning');
+        btn.classList.add('badge-success');
+        tbody.setAttribute('hx-trigger', 'load, every 2s');
+        htmx.trigger(tbody, 'htmx:load');
+      }
+    }
   </script>
 </body>
 
