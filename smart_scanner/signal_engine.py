@@ -240,6 +240,8 @@ def evaluate_symbol_timeframe(
     except Exception:
         side = "buy" if side_votes["buy"] >= side_votes.get("sell", 0) else "sell"
     prob = _prob_from_components(score, tags, n_comp=len(components), feats=feats)
+    if CONFIG.min_prob > 0.0 and prob < CONFIG.min_prob:
+        return []
     ev = (prob * 1.0) - ((1 - prob) * 0.5)  # simplistic EV estimate; tune later
     entry_hint = _build_entry_hint(
         side=side,

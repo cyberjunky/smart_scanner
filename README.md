@@ -68,6 +68,7 @@ Environment file: `smart_scanner/.env` (or export vars). Auto-loaded if `python-
 | `TRADE_MIN_SCORE` | Minimum signal score threshold |
 | `TRADE_MIN_PROB` | Minimum probability threshold |
 | `SCORE_MIN` | Minimum score for signal generation |
+| `PROB_MIN` | Minimum probability for signal generation (0.0 = disabled) |
 
 ### Smart TP/SL (Position-Level)
 | Variable | Description |
@@ -134,15 +135,16 @@ python -m smart_scanner.learn backfill \
 
 ## How It Works
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Universe   │───▶│   Candles   │───▶│   Signals   │───▶│   Trader    │
-│ (ws_universe)│    │ (ws_klines) │    │(signal_engine)│   │  (trader)   │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-       │                  │                  │                  │
-       ▼                  ▼                  ▼                  ▼
-  Rank by 24h      Rolling bars      Strategies +        Paper fills
-  quote volume     per symbol/tf     bandit weights      or live orders
+```mermaid
+flowchart LR
+    A["Universe<br/>(ws_universe)"] --> B["Candles<br/>(ws_klines)"]
+    B --> C["Signals<br/>(signal_engine)"]
+    C --> D["Trader<br/>(trader)"]
+    
+    A -.-> |"Rank by 24h<br/>quote volume"| A
+    B -.-> |"Rolling bars<br/>per symbol/tf"| B
+    C -.-> |"Strategies +<br/>bandit weights"| C
+    D -.-> |"Paper fills<br/>or live orders"| D
 ```
 
 1. **Universe**: Streams tickers, ranks by 24h volume, applies liquidity gates

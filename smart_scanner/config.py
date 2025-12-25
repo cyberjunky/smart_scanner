@@ -135,6 +135,7 @@ class Config:
 
     # Strategy gating
     min_score: float = float(os.getenv("SCORE_MIN", "3.0"))
+    min_prob: float = float(os.getenv("PROB_MIN", "0.0"))  # 0.0 = disabled
     score_max: float = float(os.getenv("SCORE_MAX", "7.0"))
     require_confirmation: int = int(os.getenv("REQUIRE_CONFIRMATION", "0"))  # 0/1
 
