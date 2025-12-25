@@ -1,26 +1,26 @@
-<div id="summary" class="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
-  <div class="card bg-base-200 shadow">
-    <div class="card-body p-4">
-      <h2 class="text-sm text-gray-400">Signals</h2>
-      <div class="text-2xl font-semibold">{{ summary.signals or 0 }}</div>
+<div id="summary" class="flex flex-nowrap gap-4 w-full">
+  <div class="card bg-base-200 shadow flex-1 min-w-max">
+    <div class="card-body p-3">
+      <h2 class="text-xs text-gray-400 whitespace-nowrap">Signals</h2>
+      <div class="text-xl font-semibold">{{ summary.signals or 0 }}</div>
     </div>
   </div>
-  <div class="card bg-base-200 shadow">
-    <div class="card-body p-4">
-      <h2 class="text-sm text-gray-400">Orders</h2>
-      <div class="text-2xl font-semibold">{{ summary.orders or 0 }}</div>
+  <div class="card bg-base-200 shadow flex-1 min-w-max">
+    <div class="card-body p-3">
+      <h2 class="text-xs text-gray-400 whitespace-nowrap">Orders</h2>
+      <div class="text-xl font-semibold">{{ summary.orders or 0 }}</div>
     </div>
   </div>
-  <div class="card bg-base-200 shadow">
-    <div class="card-body p-4">
-      <h2 class="text-sm text-gray-400">Errors</h2>
-      <div class="text-2xl font-semibold">{{ summary.errors or 0 }}</div>
+  <div class="card bg-base-200 shadow flex-1 min-w-max">
+    <div class="card-body p-3">
+      <h2 class="text-xs text-gray-400 whitespace-nowrap">Errors</h2>
+      <div class="text-xl font-semibold">{{ summary.errors or 0 }}</div>
     </div>
   </div>
-  <div class="card bg-base-200 shadow">
-    <div class="card-body p-4">
-      <h2 class="text-sm text-gray-400">Last Update</h2>
-      <div class="text-2xl font-semibold whitespace-nowrap">{{ summary.last_signal_ts|ago if summary.last_signal_ts else
+  <div class="card bg-base-200 shadow flex-1 min-w-max">
+    <div class="card-body p-3">
+      <h2 class="text-xs text-gray-400 whitespace-nowrap">Last Update</h2>
+      <div class="text-xl font-semibold whitespace-nowrap">{{ summary.last_signal_ts|ago if summary.last_signal_ts else
         "—" }}</div>
     </div>
   </div>
