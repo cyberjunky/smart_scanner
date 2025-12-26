@@ -1,11 +1,10 @@
-<div class="overlay" onclick="closeDrawer()"></div>
-<div class="panel">
-  <div class="flex items-center justify-between mb-3">
-    <h3 class="font-medium">{{ title }}</h3>
+<div class="mb-3">
+  <div class="flex items-center justify-between mb-2">
+    <h3 class="font-medium text-sm">{{ title }}</h3>
     <div class="space-x-2">
-      <button class="px-2 py-1 bg-gray-100 rounded" onclick="copyDrawerJSON()">Copy</button>
-      <button class="px-2 py-1 bg-gray-100 rounded" onclick="closeDrawer()">Close</button>
+      <button class="btn btn-xs"
+        onclick="navigator.clipboard.writeText(document.getElementById('detail-json').textContent)">Copy</button>
     </div>
   </div>
-  <pre class="json text-xs">{{ body }}</pre>
+  <pre id="detail-json" class="json text-xs bg-base-300 p-2 rounded overflow-auto">{{ body }}</pre>
 </div>

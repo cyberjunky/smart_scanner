@@ -1,5 +1,5 @@
 <tr class="hover:bg-base-300 cursor-pointer" hx-get="/partials/details?bucket=signals&ts={{ ev.ts }}"
-  hx-target="#drawer" hx-swap="innerHTML" hx-trigger="click">
+  hx-target="#signal-details" hx-swap="innerHTML" hx-trigger="click" hx-on::after-request="showSignalDetails()">
   <td class="text-xs text-gray-400">{{ ev.ts|ago }}</td>
   <td>
     {% if ev.side == 'buy' or ev.side == 'long' %}

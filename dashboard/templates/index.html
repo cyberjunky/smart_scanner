@@ -85,7 +85,7 @@
     </div>
   </div>
 
-  <main class="p-4 max-w-7xl mx-auto">
+  <main class="p-4 mx-auto">
     <!-- KPI summary -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4" hx-get="/partials/summary" hx-trigger="load, every 3s"
       hx-target="#summary" hx-swap="outerHTML">
@@ -118,9 +118,10 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- Left: Signals + Orders -->
-      <div class="lg:col-span-2 space-y-4">
+
+    <div class="grid grid-cols-3 gap-4">
+      <!-- Left: Signals -->
+      <div class="space-y-4" style="min-width: 0;">
         <div class="card bg-base-200 shadow">
           <div class="card-body">
             <div class="flex justify-between items-center">
@@ -153,7 +154,7 @@
             </div>
 
             <div class="overflow-x-auto">
-              <table class="table table-zebra w-full">
+              <table class="table table-compact table-zebra w-full text-xs">
                 <thead>
                   <tr>
                     <th class="sortable" data-col="0" data-type="string">Time</th>
@@ -176,12 +177,15 @@
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Middle: Orders / Risk / Exposure -->
+      <div class="space-y-4" style="min-width: 0;">
         <div class="card bg-base-200 shadow">
           <div class="card-body">
             <h2 class="card-title">Orders / Risk / Exposure</h2>
             <div class="overflow-x-auto">
-              <table class="table table-zebra w-full">
+              <table class="table table-compact table-zebra w-full text-xs">
                 <thead>
                   <tr>
                     <th>Time</th>
@@ -194,7 +198,7 @@
                   </tr>
                 </thead>
                 <tbody id="orders-tbody" hx-get="/partials/orders" hx-trigger="load, every 2s" hx-swap="innerHTML">
-                  <!-- Server fills with _orders_tbody.html (your app.py expects it) -->
+                  <!-- Server fills with _orders_tbody.html -->
                   <tr>
                     <td colspan="7" class="text-gray-500">Loading…</td>
                   </tr>
@@ -206,7 +210,7 @@
       </div>
 
       <!-- Right: Positions + Errors -->
-      <div class="space-y-4">
+      <div class="space-y-4" style="min-width: 0;">
         <div class="card bg-base-200 shadow">
           <div class="card-body">
             <h2 class="card-title">Open Positions</h2>
@@ -220,7 +224,7 @@
                     <th>Entry</th>
                     <th>Mark</th>
                     <th>SL</th>
-                    <th>PnLᵤ</th>
+                    <th>PnL</th>
                   </tr>
                 </thead>
                 <tbody id="positions-tbody" hx-get="/partials/positions" hx-trigger="load, every 2s"
@@ -266,11 +270,25 @@
             {% include "_pnl.html" %}
           </div>
         </div>
+
+        <!-- Signal Details Panel -->
+        <div id="signal-detail-panel" class="card bg-base-200 shadow hidden">
+          <div class="card-body">
+            <div class="flex justify-between items-center">
+              <h2 class="card-title">Signal Details</h2>
+              <button class="btn btn-sm btn-ghost"
+                onclick="document.getElementById('signal-details').innerHTML='<div class=\'text-gray-400 text-center py-4\'>Click a signal to view details</div>'">Clear</button>
+            </div>
+            <div id="signal-details" class="overflow-auto max-h-64 text-xs">
+              <div class="text-gray-400 text-center py-4">Click a signal to view details</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Details drawer target (your _row_error.html points hx-target here) -->
-    <div id="drawer"></div>
+    <!-- Hidden drawer for backward compatibility -->
+    <div id="drawer" class="hidden"></div>
   </main>
 
   <script>
@@ -405,6 +423,15 @@
         filterSignals();
       }
     });
+
+    // Signal details panel show/hide (global for HTMX-loaded content)
+    window.showSignalDetails = function () {
+      document.getElementById('signal-detail-panel').classList.remove('hidden');
+    }
+
+    window.closeSignalDetails = function () {
+      document.getElementById('signal-detail-panel').classList.add('hidden');
+    }
   </script>
 </body>
 
