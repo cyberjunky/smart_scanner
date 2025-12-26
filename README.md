@@ -252,6 +252,51 @@ For 24/7 headless operation, see `deploy/README_DEPLOY.md` for Docker/Compose in
 
 ---
 
+## Development & CI
+
+### Setup Dev Environment
+```bash
+# Install with dev dependencies
+pip install -e "smart_scanner[dev]"
+```
+
+### Linting & Formatting
+```bash
+# Check for issues
+ruff check .
+
+# Auto-fix issues
+ruff check --fix .
+
+# Format code
+ruff format .
+
+# Type check
+mypy .
+
+# Spell check
+codespell .
+```
+
+### Testing
+```bash
+pytest tests/ -v
+```
+
+### Pre-commit (Optional)
+You can add a `.pre-commit-config.yaml` for automated checks:
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+```
+
+---
+
 ## Security
 
 - **Never commit real API keys** - use `.env.local` (git-ignored)
