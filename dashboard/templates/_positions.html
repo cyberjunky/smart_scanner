@@ -1,7 +1,22 @@
 {% if positions and positions|length %}
 {% for p in positions %}
-<tr class="hover:bg-base-300">
-  <td class="font-medium">{{ p.symbol or "-" }}</td>
+<tr class="hover:bg-base-300 cursor-pointer" hx-get="/partials/details?bucket=positions&ts={{ p.ts }}"
+  hx-target="#signal-details" hx-swap="innerHTML" hx-trigger="click" hx-on::after-request="showSignalDetails()">
+  <td class="text-xs text-gray-400">{{ p.ts|dt }}</td>
+  <td class="font-medium">
+    {% set sym = p.symbol or '-' %}
+    {{ sym }}
+    {% if sym != '-' %}
+    <a href="https://blofin.com/futures/en/{{ sym }}" target="_blank" class="ml-1 opacity-50 hover:opacity-100"
+      onclick="event.stopPropagation()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="inline-block w-3 h-3" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    </a>
+    {% endif %}
+  </td>
   <td>
     {% if p.side == 'long' or p.side == 'buy' %}
     <span class="text-success">LONG</span>
@@ -27,6 +42,6 @@
 {% endfor %}
 {% else %}
 <tr>
-  <td colspan="7" class="text-gray-500">No open positions.</td>
+  <td colspan="8" class="text-gray-500">No open positions.</td>
 </tr>
 {% endif %}

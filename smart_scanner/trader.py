@@ -197,7 +197,10 @@ class AutoTrader:
         ok, reason = self._eligibility(s)
         if not ok:
             try:
-                emit_metric("trade_skip", {"symbol": s.symbol, "reason": reason, "score": s.score, "prob": s.prob})
+                skip_data = {"symbol": s.symbol, "reason": reason, "score": s.score, "prob": s.prob, "side": s.side}
+                if hasattr(s, "entry_hint") and s.entry_hint:
+                    skip_data["entry_hint"] = s.entry_hint
+                emit_metric("trade_skip", skip_data)
             except Exception:
                 pass
             if CONFIG.log_trade_skips:

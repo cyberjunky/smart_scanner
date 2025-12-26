@@ -1,12 +1,29 @@
 {% if orders and orders|length %}
+{% set page_size = 10 %}
+{% set total = orders|length %}
+{% if show_all %}
 {% for o in orders %}
 {% if o.kind != 'exposure' or (o.symbol or o.instId) %}
-<tr class="hover:bg-base-300">
-  <td class="text-xs text-gray-400">{{ o.ts|ago }}</td>
+<tr class="hover:bg-base-300 cursor-pointer" hx-get="/partials/details?bucket=orders&ts={{ o.ts }}"
+  hx-target="#signal-details" hx-swap="innerHTML" hx-trigger="click" hx-on::after-request="showSignalDetails()">
+  <td class="text-xs text-gray-400">{{ o.ts|dt }}</td>
   <td>
     <span class="badge badge-ghost badge-sm">{{ o.kind or o.type or "-" }}</span>
   </td>
-  <td class="font-medium">{{ o.symbol or o.instId or "-" }}</td>
+  <td class="font-medium">
+    {% set sym = o.symbol or o.instId or '-' %}
+    {{ sym }}
+    {% if sym != '-' %}
+    <a href="https://blofin.com/futures/en/{{ sym }}" target="_blank" class="ml-1 opacity-50 hover:opacity-100"
+      onclick="event.stopPropagation()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="inline-block w-3 h-3" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    </a>
+    {% endif %}
+  </td>
   <td>
     {% if o.side == 'buy' or o.side == 'long' %}
     <span class="text-success">LONG</span>
@@ -18,10 +35,79 @@
   </td>
   <td class="num text-xs">{{ "%.2f"|format(o.notional or o.size or 0) if (o.notional or o.size) else "-" }}</td>
   <td class="num text-xs">{{ "%.4f"|format(o.price or 0) if o.price else "-" }}</td>
-  <td class="text-xs text-gray-400">{{ o.msg or o.reason or o.details or "-" }}</td>
+  <td class="text-xs text-gray-400">
+    {%- set parts = [] -%}
+    {%- if o.reason -%}{% set _ = parts.append(o.reason) %}{%- endif -%}
+    {%- if o.entry_hint -%}
+    {%- if o.entry_hint.mode -%}{% set _ = parts.append(o.entry_hint.mode) %}{%- endif -%}
+    {%- if o.entry_hint.reason and o.entry_hint.reason != o.reason -%}{% set _ = parts.append(o.entry_hint.reason) %}{%-
+    endif -%}
+    {%- endif -%}
+    {%- if o.msg -%}{% set _ = parts.append(o.msg) %}{%- endif -%}
+    {%- if o.details -%}{% set _ = parts.append(o.details) %}{%- endif -%}
+    {{ parts|join(' · ') if parts else '-' }}
+  </td>
 </tr>
 {% endif %}
 {% endfor %}
+{% else %}
+{% for o in orders[:page_size] %}
+{% if o.kind != 'exposure' or (o.symbol or o.instId) %}
+<tr class="hover:bg-base-300 cursor-pointer" hx-get="/partials/details?bucket=orders&ts={{ o.ts }}"
+  hx-target="#signal-details" hx-swap="innerHTML" hx-trigger="click" hx-on::after-request="showSignalDetails()">
+  <td class="text-xs text-gray-400">{{ o.ts|dt }}</td>
+  <td>
+    <span class="badge badge-ghost badge-sm">{{ o.kind or o.type or "-" }}</span>
+  </td>
+  <td class="font-medium">
+    {% set sym = o.symbol or o.instId or '-' %}
+    {{ sym }}
+    {% if sym != '-' %}
+    <a href="https://blofin.com/futures/en/{{ sym }}" target="_blank" class="ml-1 opacity-50 hover:opacity-100"
+      onclick="event.stopPropagation()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="inline-block w-3 h-3" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    </a>
+    {% endif %}
+  </td>
+  <td>
+    {% if o.side == 'buy' or o.side == 'long' %}
+    <span class="text-success">LONG</span>
+    {% elif o.side == 'sell' or o.side == 'short' %}
+    <span class="text-error">SHORT</span>
+    {% else %}
+    {{ o.side or "-" }}
+    {% endif %}
+  </td>
+  <td class="num text-xs">{{ "%.2f"|format(o.notional or o.size or 0) if (o.notional or o.size) else "-" }}</td>
+  <td class="num text-xs">{{ "%.4f"|format(o.price or 0) if o.price else "-" }}</td>
+  <td class="text-xs text-gray-400">
+    {%- set parts = [] -%}
+    {%- if o.reason -%}{% set _ = parts.append(o.reason) %}{%- endif -%}
+    {%- if o.entry_hint -%}
+    {%- if o.entry_hint.mode -%}{% set _ = parts.append(o.entry_hint.mode) %}{%- endif -%}
+    {%- if o.entry_hint.reason and o.entry_hint.reason != o.reason -%}{% set _ = parts.append(o.entry_hint.reason) %}{%-
+    endif -%}
+    {%- endif -%}
+    {%- if o.msg -%}{% set _ = parts.append(o.msg) %}{%- endif -%}
+    {%- if o.details -%}{% set _ = parts.append(o.details) %}{%- endif -%}
+    {{ parts|join(' · ') if parts else '-' }}
+  </td>
+</tr>
+{% endif %}
+{% endfor %}
+{% if total > page_size %}
+<tr>
+  <td colspan="7" class="text-center text-xs py-2">
+    <span class="text-gray-500">Showing {{ page_size }} of {{ total }} events</span>
+    <button class="ml-2 text-primary hover:underline" onclick="showAllOrders()">Show all</button>
+  </td>
+</tr>
+{% endif %}
+{% endif %}
 {% else %}
 <tr>
   <td colspan="7" class="text-gray-500">No orders yet.</td>

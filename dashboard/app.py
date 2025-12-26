@@ -39,7 +39,19 @@ def _ago(ts: Optional[float]) -> str:
         return "—"
 
 
+def _dt(ts: Optional[float]) -> str:
+    """Format timestamp as MM-DD HH:MM"""
+    try:
+        if ts is None:
+            return "—"
+        from datetime import datetime
+        return datetime.fromtimestamp(float(ts)).strftime("%m-%d %H:%M")
+    except Exception:
+        return "—"
+
+
 templates.env.filters["ago"] = _ago  # type: ignore[attr-defined]
+templates.env.filters["dt"] = _dt  # type: ignore[attr-defined]
 
 
 def _read_events(max_lines: int = 20000) -> List[Dict[str, Any]]:
@@ -76,7 +88,7 @@ def _partition(evts: List[Dict[str, Any]]):
         k = str(ev.get("kind") or "")
         if k == "signal":
             signals.append(ev)
-        elif k.startswith("order") or k.startswith("risk_") or k == "trade_close" or k == "exposure":
+        elif k.startswith("order") or k.startswith("risk_") or k in ("trade_close", "trade_skip", "exposure"):
             orders.append(ev)
         elif k.endswith("error"):
             errors.append(ev)
@@ -97,6 +109,28 @@ def _partition(evts: List[Dict[str, Any]]):
                         "mark": float(ev.get("mark") or 0.0),
                         "sl": ev.get("sl"),
                         "ts": float(ev.get("ts") or time.time()),
+                    }
+            except Exception:
+                pass
+        elif k == "paper_fill":
+            # Track paper fills as positions for dashboard display
+            try:
+                inst = ev.get("symbol")
+                side = (ev.get("side") or "").lower()
+                qty = float(ev.get("qty") or 0.0)
+                price = float(ev.get("price") or 0.0)
+                notional = float(ev.get("notional") or 0.0)
+                key = f"{inst}|{side}" if side else inst
+                if qty > 0:
+                    positions_map[key] = {
+                        "instId": inst,
+                        "side": side,
+                        "size": qty,
+                        "entry": price,
+                        "mark": price,  # no live mark price in paper mode
+                        "sl": None,
+                        "ts": float(ev.get("ts") or time.time()),
+                        "notional": notional,
                     }
             except Exception:
                 pass
@@ -160,11 +194,12 @@ def partial_signals(request: Request):
 
 
 @app.get("/partials/orders", response_class=HTMLResponse)
-def partial_orders(request: Request):
+def partial_orders(request: Request, all: int = 0):
     evts = _read_events()
     _, orders, _, _ = _partition(evts)
-    rows = list(reversed(orders[-50:]))
-    return templates.TemplateResponse("_orders_tbody.html", {"request": request, "orders": rows})
+    limit = 500 if all else 50
+    rows = list(reversed(orders[-limit:]))
+    return templates.TemplateResponse("_orders_tbody.html", {"request": request, "orders": rows, "show_all": bool(all)})
 
 
 @app.get("/partials/errors", response_class=HTMLResponse)
@@ -239,8 +274,30 @@ def partial_details(request: Request, bucket: str, ts: float):
     evts = _read_events()
     best = None
     best_dt = 1e9
+    
+    # Define which kinds belong to each bucket
+    bucket_kinds = {
+        "signals": {"signal"},
+        "orders": {
+            "order", "order_api", "order_api_sl", "order_api_tp", "order_api_error",
+            "order_api_retry", "order_api_sl_retry", "order_api_tp_retry",
+            "order_balance_snapshot", "order_balance_adjust", "order_size_adjust",
+            "order_margin_info", "order_upsize_to_min",
+            "risk_plan", "trade_close", "trade_skip", "exposure", "exposure_block",
+            "tpsl_atr_clamped", "tpsl_skip_existing_sl", "tpsl_existing_tp_size",
+            "tpsl_skip_tp2_lt_min", "sl_adjust_for_last", "tp_adjust_for_last",
+        },
+        "positions": {"position", "paper_fill"},
+        "errors": {"error", "scanner_error", "order_error", "order_api_error", "panic_trigger"},
+    }
+    allowed_kinds = bucket_kinds.get(bucket, set())
+    
     for ev in evts:
         try:
+            k = str(ev.get("kind") or "")
+            # If bucket specified, filter by kind
+            if allowed_kinds and k not in allowed_kinds:
+                continue
             t = float(ev.get("ts"))
             dt = abs(t - ts)
             if dt < best_dt:
@@ -248,7 +305,14 @@ def partial_details(request: Request, bucket: str, ts: float):
                 best_dt = dt
         except Exception:
             continue
-    title = f"{bucket.title()} details"
+    # Map bucket to display title
+    display_titles = {
+        "orders": "Order Events",
+        "signals": "Signals",
+        "positions": "Positions",
+        "errors": "Errors",
+    }
+    title = f"{display_titles.get(bucket, bucket.title())} details"
     if not best:
         body = "No data"
     else:

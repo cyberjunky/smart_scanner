@@ -188,17 +188,39 @@
       <div class="space-y-4" style="min-width: 0;">
         <div class="card bg-base-200 shadow">
           <div class="card-body">
-            <h2 class="card-title">Orders / Risk / Exposure</h2>
+            <div class="flex justify-between items-center">
+              <h2 class="card-title">Orders / Risk / Position</h2>
+              <button id="orders-live-toggle" class="badge badge-success cursor-pointer hover:opacity-80"
+                onclick="toggleOrdersLive()">Live</button>
+            </div>
+            <!-- Filters -->
+            <div class="flex flex-wrap gap-2 mb-2">
+              <input type="text" id="order-symbol-filter" placeholder="Search symbol..."
+                class="input input-sm input-bordered w-40" onkeyup="filterOrders()">
+              <select id="order-kind-filter" class="select select-sm select-bordered" onchange="filterOrders()">
+                <option value="">All Types</option>
+                <option value="order">order</option>
+                <option value="risk_plan">risk_plan</option>
+                <option value="trade_close">trade_close</option>
+                <option value="trade_skip">trade_skip</option>
+              </select>
+              <select id="order-side-filter" class="select select-sm select-bordered" onchange="filterOrders()">
+                <option value="">All Sides</option>
+                <option value="LONG">LONG</option>
+                <option value="SHORT">SHORT</option>
+              </select>
+              <button class="btn btn-sm btn-ghost" onclick="clearOrderFilters()">Clear</button>
+            </div>
             <div class="overflow-x-auto">
-              <table class="table table-compact table-zebra w-full text-xs">
+              <table class="table table-compact table-zebra w-full text-xs" id="orders-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
-                    <th>Kind</th>
-                    <th>Symbol</th>
-                    <th>Side</th>
-                    <th>Size</th>
-                    <th>Price</th>
+                    <th class="sortable" data-col="0" data-type="string">Time</th>
+                    <th class="sortable" data-col="1" data-type="string">Kind</th>
+                    <th class="sortable" data-col="2" data-type="string">Symbol</th>
+                    <th class="sortable" data-col="3" data-type="string">Side</th>
+                    <th class="sortable" data-col="4" data-type="number">Size</th>
+                    <th class="sortable" data-col="5" data-type="number">Price</th>
                     <th>Details</th>
                   </tr>
                 </thead>
@@ -218,29 +240,53 @@
       <div class="space-y-4" style="min-width: 0;">
         <div class="card bg-base-200 shadow">
           <div class="card-body">
-            <h2 class="card-title">Open Positions</h2>
+            <div class="flex justify-between items-center">
+              <h2 class="card-title">Open Positions</h2>
+              <button id="positions-live-toggle" class="badge badge-success cursor-pointer hover:opacity-80"
+                onclick="togglePositionsLive()">Live</button>
+            </div>
+            <!-- Filters -->
+            <div class="flex flex-wrap gap-2 mb-2">
+              <input type="text" id="position-symbol-filter" placeholder="Search symbol..."
+                class="input input-sm input-bordered w-40" onkeyup="filterPositions()">
+              <select id="position-side-filter" class="select select-sm select-bordered" onchange="filterPositions()">
+                <option value="">All Sides</option>
+                <option value="LONG">LONG</option>
+                <option value="SHORT">SHORT</option>
+              </select>
+              <button class="btn btn-sm btn-ghost" onclick="clearPositionFilters()">Clear</button>
+            </div>
             <div class="overflow-x-auto">
-              <table class="table table-compact w-full">
+              <table class="table table-compact table-zebra w-full text-xs" id="positions-table">
                 <thead>
                   <tr>
-                    <th>Inst</th>
-                    <th>Side</th>
-                    <th>Size</th>
-                    <th>Entry</th>
-                    <th>Mark</th>
-                    <th>SL</th>
-                    <th>PnL</th>
+                    <th class="sortable" data-col="0" data-type="string">Time</th>
+                    <th class="sortable" data-col="1" data-type="string">Symbol</th>
+                    <th class="sortable" data-col="2" data-type="string">Side</th>
+                    <th class="sortable" data-col="3" data-type="number">Size</th>
+                    <th class="sortable" data-col="4" data-type="number">Entry</th>
+                    <th class="sortable" data-col="5" data-type="number">Mark</th>
+                    <th class="sortable" data-col="6" data-type="number">SL</th>
+                    <th class="sortable" data-col="7" data-type="number">PnL</th>
                   </tr>
                 </thead>
                 <tbody id="positions-tbody" hx-get="/partials/positions" hx-trigger="load, every 2s"
                   hx-swap="innerHTML">
                   <!-- Server fills with _positions.html (your app.py expects it) -->
                   <tr>
-                    <td colspan="7" class="text-gray-500">Loading…</td>
+                    <td colspan="8" class="text-gray-500">Loading…</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <div class="card bg-base-200 shadow">
+          <div class="card-body">
+            <h2 class="card-title">PnL (Today)</h2>
+            <!-- _pnl.html renders a server-side SVG sparkline -->
+            {% include "_pnl.html" %}
           </div>
         </div>
 
@@ -268,24 +314,16 @@
           </div>
         </div>
 
-        <div class="card bg-base-200 shadow">
-          <div class="card-body">
-            <h2 class="card-title">PnL (Today)</h2>
-            <!-- _pnl.html renders a server-side SVG sparkline -->
-            {% include "_pnl.html" %}
-          </div>
-        </div>
-
-        <!-- Signal Details Panel -->
+        <!-- Debug Details Panel -->
         <div id="signal-detail-panel" class="card bg-base-200 shadow hidden">
           <div class="card-body">
             <div class="flex justify-between items-center">
-              <h2 class="card-title">Signal Details</h2>
+              <h2 class="card-title">Debug Details</h2>
               <button class="btn btn-sm btn-ghost"
-                onclick="document.getElementById('signal-details').innerHTML='<div class=\'text-gray-500 text-sm\'>Click a signal to view details</div>'">Clear</button>
+                onclick="document.getElementById('signal-details').innerHTML='<div class=\'text-gray-500 text-sm\'>Click any row to view details</div>'">Clear</button>
             </div>
             <div id="signal-details" class="overflow-auto max-h-64 text-xs">
-              <div class="text-gray-500 text-sm">Click a signal to view details</div>
+              <div class="text-gray-500 text-sm">Click any row to view details</div>
             </div>
           </div>
         </div>
@@ -363,27 +401,21 @@
       th.addEventListener('click', () => sortTable(th));
     });
 
-    // Live refresh toggle
-    let isPaused = false;
+    // Live refresh toggle for signals
+    let signalsPaused = false;
     function toggleLiveRefresh() {
       const btn = document.getElementById('live-toggle');
-      const tbody = document.getElementById('signals-tbody');
-      isPaused = !isPaused;
+      signalsPaused = !signalsPaused;
 
-      if (isPaused) {
-        // Pause: stop HTMX polling
+      if (signalsPaused) {
         btn.textContent = 'Paused';
         btn.classList.remove('badge-success');
         btn.classList.add('badge-warning');
-        htmx.trigger(tbody, 'htmx:abort');
-        tbody.setAttribute('hx-trigger', 'none');
       } else {
-        // Resume: restart HTMX polling
         btn.textContent = 'Live';
         btn.classList.remove('badge-warning');
         btn.classList.add('badge-success');
-        tbody.setAttribute('hx-trigger', 'load, every 2s');
-        htmx.trigger(tbody, 'htmx:load');
+        htmx.trigger('#signals-tbody', 'load');
       }
     }
 
@@ -437,6 +469,133 @@
     window.closeSignalDetails = function () {
       document.getElementById('signal-detail-panel').classList.add('hidden');
     }
+
+    // Orders filter functions
+    function filterOrders() {
+      const symbolFilter = document.getElementById('order-symbol-filter').value.toUpperCase();
+      const kindFilter = document.getElementById('order-kind-filter').value.toLowerCase();
+      const sideFilter = document.getElementById('order-side-filter').value.toUpperCase();
+      const tbody = document.getElementById('orders-tbody');
+      const rows = tbody.querySelectorAll('tr');
+
+      for (const row of rows) {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 4) continue;
+
+        const kind = cells[1]?.textContent?.toLowerCase() || '';
+        const symbol = cells[2]?.textContent?.toUpperCase() || '';
+        const side = cells[3]?.textContent?.toUpperCase() || '';
+
+        let show = true;
+        if (symbolFilter && !symbol.includes(symbolFilter)) show = false;
+        if (kindFilter && !kind.includes(kindFilter)) show = false;
+        if (sideFilter && !side.includes(sideFilter)) show = false;
+
+        row.style.display = show ? '' : 'none';
+      }
+    }
+
+    function clearOrderFilters() {
+      document.getElementById('order-symbol-filter').value = '';
+      document.getElementById('order-kind-filter').value = '';
+      document.getElementById('order-side-filter').value = '';
+      filterOrders();
+    }
+
+    // Re-filter orders after HTMX updates
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (evt.detail.target.id === 'orders-tbody') {
+        filterOrders();
+      }
+      if (evt.detail.target.id === 'positions-tbody') {
+        filterPositions();
+      }
+    });
+
+    // Positions filter functions
+    function filterPositions() {
+      const symbolFilter = document.getElementById('position-symbol-filter').value.toUpperCase();
+      const sideFilter = document.getElementById('position-side-filter').value.toUpperCase();
+      const tbody = document.getElementById('positions-tbody');
+      const rows = tbody.querySelectorAll('tr');
+
+      for (const row of rows) {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 3) continue;
+
+        const symbol = cells[1]?.textContent?.toUpperCase() || '';
+        const side = cells[2]?.textContent?.toUpperCase() || '';
+
+        let show = true;
+        if (symbolFilter && !symbol.includes(symbolFilter)) show = false;
+        if (sideFilter && !side.includes(sideFilter)) show = false;
+
+        row.style.display = show ? '' : 'none';
+      }
+    }
+
+    function clearPositionFilters() {
+      document.getElementById('position-symbol-filter').value = '';
+      document.getElementById('position-side-filter').value = '';
+      filterPositions();
+    }
+
+    // Orders live/pause toggle
+    let ordersPaused = false;
+    function toggleOrdersLive() {
+      const btn = document.getElementById('orders-live-toggle');
+      ordersPaused = !ordersPaused;
+
+      if (ordersPaused) {
+        btn.textContent = 'Paused';
+        btn.classList.remove('badge-success');
+        btn.classList.add('badge-warning');
+      } else {
+        btn.textContent = 'Live';
+        btn.classList.remove('badge-warning');
+        btn.classList.add('badge-success');
+        htmx.trigger('#orders-tbody', 'load');
+      }
+    }
+
+    // Show all orders (remove pagination)
+    function showAllOrders() {
+      const tbody = document.getElementById('orders-tbody');
+      tbody.setAttribute('hx-get', '/partials/orders?all=1');
+      htmx.trigger(tbody, 'load');
+      // Restore original after load
+      setTimeout(() => tbody.setAttribute('hx-get', '/partials/orders'), 500);
+    }
+
+    // Positions live/pause toggle
+    let positionsPaused = false;
+    function togglePositionsLive() {
+      const btn = document.getElementById('positions-live-toggle');
+      positionsPaused = !positionsPaused;
+
+      if (positionsPaused) {
+        btn.textContent = 'Paused';
+        btn.classList.remove('badge-success');
+        btn.classList.add('badge-warning');
+      } else {
+        btn.textContent = 'Live';
+        btn.classList.remove('badge-warning');
+        btn.classList.add('badge-success');
+        htmx.trigger('#positions-tbody', 'load');
+      }
+    }
+
+    // Cancel HTMX requests when paused
+    document.body.addEventListener('htmx:beforeRequest', function (evt) {
+      const targetId = evt.detail.target?.id;
+      if (targetId === 'signals-tbody' && signalsPaused) {
+        evt.preventDefault();
+      } else if (targetId === 'orders-tbody' && ordersPaused) {
+        evt.preventDefault();
+      } else if (targetId === 'positions-tbody' && positionsPaused) {
+        evt.preventDefault();
+      }
+    });
   </script>
 </body>
 

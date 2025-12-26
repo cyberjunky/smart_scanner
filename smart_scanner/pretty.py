@@ -76,6 +76,7 @@ class PrettyPrinter:
         t.add_row("Universe from WS", "Yes" if cfg.universe_from_ws else "No")
         t.add_row("Paper Trading", "Yes" if cfg.paper_trading else "No")
         t.add_row("Autotrade", "Yes" if cfg.enable_autotrade else "No")
+        t.add_row("Max Positions", str(cfg.trade_max_positions))
         t.add_row("TPSL", "On" if cfg.enable_tpsl else "Off")
         t.add_row("Leverage", str(cfg.trading_leverage))
         t.add_row("Margin Mode", str(cfg.trading_margin_mode))
