@@ -88,7 +88,7 @@ def _partition(evts: List[Dict[str, Any]]):
         k = str(ev.get("kind") or "")
         if k == "signal":
             signals.append(ev)
-        elif k.startswith("order") or k.startswith("risk_") or k in ("trade_close", "trade_skip", "exposure"):
+        elif k.startswith("order") or k.startswith("risk_") or k in ("trade_close", "paper_close", "paper_fill", "exposure"):
             orders.append(ev)
         elif k.endswith("error"):
             errors.append(ev)
@@ -128,7 +128,8 @@ def _partition(evts: List[Dict[str, Any]]):
                         "size": qty,
                         "entry": price,
                         "mark": price,  # no live mark price in paper mode
-                        "sl": None,
+                        "tp": ev.get("tp"),
+                        "sl": ev.get("sl"),
                         "ts": float(ev.get("ts") or time.time()),
                         "notional": notional,
                     }
@@ -154,8 +155,10 @@ def _positions_list(positions_map: Dict[str, Dict[str, Any]]) -> List[Dict[str, 
             "symbol": st.get("instId"),
             "side": st.get("side"),
             "size": st.get("size"),
+            "notional": st.get("notional"),
             "entry": st.get("entry"),
             "mark": st.get("mark"),
+            "tp": st.get("tp"),
             "sl": st.get("sl"),
             "pnl_u": pnl_u,
             "ts": st.get("ts"),
@@ -243,6 +246,22 @@ def api_summary():
     except Exception:
         pass
     
+    # Get balance from balance metrics emitted by scanner
+    balance_mode = "paper"
+    balance_value = 0.0
+    balance_pnl = 0.0
+    balance_starting = 0.0
+    try:
+        for ev in reversed(evts):  # scan backwards to find latest
+            if ev.get("kind") == "balance":
+                balance_mode = ev.get("mode", "paper")
+                balance_value = float(ev.get("balance", 0) or 0)
+                balance_pnl = float(ev.get("pnl", 0) or 0)
+                balance_starting = float(ev.get("starting", 0) or 0)
+                break  # use the latest balance metric
+    except Exception:
+        pass
+    
     out = {
         "signals": len(signals),
         "orders": len(orders),
@@ -253,6 +272,10 @@ def api_summary():
         "last_position_ts": last_pos_ts,
         "server_now": time.time(),
         "regime_mult": regime_mult,
+        "balance_mode": balance_mode,
+        "balance": balance_value,
+        "balance_pnl": balance_pnl,
+        "balance_starting": balance_starting,
     }
     return JSONResponse(out)
 
@@ -287,7 +310,7 @@ def partial_details(request: Request, bucket: str, ts: float):
             "tpsl_atr_clamped", "tpsl_skip_existing_sl", "tpsl_existing_tp_size",
             "tpsl_skip_tp2_lt_min", "sl_adjust_for_last", "tp_adjust_for_last",
         },
-        "positions": {"position", "paper_fill"},
+        "positions": {"position", "paper_fill", "paper_close"},
         "errors": {"error", "scanner_error", "order_error", "order_api_error", "panic_trigger"},
     }
     allowed_kinds = bucket_kinds.get(bucket, set())

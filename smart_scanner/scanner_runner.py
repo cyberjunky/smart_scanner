@@ -769,6 +769,12 @@ async def ws_event_loop():
                 sym, tf, ts_bar = await q.get()
             except Exception:
                 continue
+            # Paper trading: check TP/SL on every bar close for faster execution
+            if CONFIG.paper_trading and CONFIG.enable_autotrade and GLOBAL_TRADER.broker.positions:
+                try:
+                    await _check_paper_tpsl(client)
+                except Exception:
+                    pass
             # Emergency: auto-panic flatten if kill file/env is active (one-shot)
             if (
                 CONFIG.enable_autotrade
@@ -986,6 +992,17 @@ async def loop_forever():
                         await _refresh_exposure(client)
                     except Exception:
                         pass
+                    # Paper trading: check TP/SL against live prices
+                    if CONFIG.paper_trading and CONFIG.enable_autotrade:
+                        try:
+                            await _check_paper_tpsl(client)
+                        except Exception:
+                            pass
+                    # Emit balance metric
+                    try:
+                        await _emit_balance(client)
+                    except Exception:
+                        pass
                     _exposure_last_refresh_ts = time.time()
                 # Emergency: auto-panic flatten if kill file/env is active (one-shot)
                 if (
@@ -1146,6 +1163,95 @@ async def _refresh_exposure(client: BlofinClient) -> None:
             pass
     except Exception:
         pass
+
+
+async def _check_paper_tpsl(client: BlofinClient) -> None:
+    """Check paper positions against live prices, close on TP/SL hit."""
+    if not GLOBAL_TRADER.paper or not GLOBAL_TRADER.broker.positions:
+        return
+    # Get symbols we have positions in
+    symbols = list(GLOBAL_TRADER.broker.positions.keys())
+    if not symbols:
+        return
+    # Fetch current tickers
+    try:
+        tickers = await client.get_tickers(CONFIG.ws_inst_type)
+    except Exception:
+        return
+    # Build price map
+    price_map: Dict[str, float] = {}
+    for t in tickers or []:
+        try:
+            inst = t.get("instId") or t.get("symbol")
+            px = _get_last_price(t)
+            if inst and px > 0:
+                price_map[inst] = px
+        except Exception:
+            continue
+    if not price_map:
+        return
+    # Update mark prices for dashboard display
+    GLOBAL_TRADER.broker.update_marks(price_map)
+    # Emit position snapshots for dashboard (so mark prices show correctly)
+    for sym, pos in GLOBAL_TRADER.broker.positions.items():
+        try:
+            emit_metric("position", {
+                "instId": sym,
+                "side": pos.side,
+                "size": pos.qty,
+                "entry": pos.entry,
+                "mark": pos.mark,
+                "tp": pos.tp,
+                "sl": pos.sl,
+                "notional": pos.notional,
+                "ts": time.time(),
+            })
+        except Exception:
+            pass
+    # Check TP/SL
+    closed = GLOBAL_TRADER.broker.check_tpsl(price_map)
+    for c in closed:
+        try:
+            pnl = c.get("pnl", 0)
+            pnl_pct = c.get("pnl_pct", 0)
+            reason = c.get("reason", "unknown")
+            sym = c.get("symbol", "?")
+            pnl_str = f"+${pnl:.2f}" if pnl >= 0 else f"-${abs(pnl):.2f}"
+            print(f"[paper/CLOSE] {sym} {reason} pnl={pnl_str} ({pnl_pct:+.1f}%)")
+        except Exception:
+            pass
+
+
+async def _emit_balance(client: BlofinClient) -> None:
+    """Emit balance metric: paper balance from trader or live balance from exchange."""
+    try:
+        if CONFIG.paper_trading:
+            # Paper mode: get balance from PaperBroker
+            bal = GLOBAL_TRADER.broker.balance
+            starting = GLOBAL_TRADER.broker.starting_balance
+            pnl = GLOBAL_TRADER.broker.realized_pnl
+            emit_metric("balance", {
+                "mode": "paper",
+                "balance": bal,
+                "starting": starting,
+                "pnl": pnl,
+            })
+        else:
+            # Real mode: get balance from exchange
+            bal_data = await client.get_account_balance("USDT-FUTURES")
+            details = bal_data.get("details") or []
+            if details:
+                d0 = details[0]
+                equity = float(d0.get("equityUsd", 0) or 0)
+                available = float(d0.get("available", 0) or 0)
+                emit_metric("balance", {
+                    "mode": "live",
+                    "balance": equity,
+                    "available": available,
+                })
+    except Exception:
+        pass
+
 
 async def _account_sanity(client: BlofinClient) -> None:
     if not CONFIG.enable_autotrade or CONFIG.paper_trading:

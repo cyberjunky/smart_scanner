@@ -325,6 +325,7 @@ class Config:
     # --- Auto-trader settings ---
     enable_autotrade: int = int(os.getenv("ENABLE_AUTOTRADE", "0"))
     paper_trading: int = int(os.getenv("PAPER_TRADING", "1"))
+    paper_balance: float = float(os.getenv("PAPER_BALANCE", "10000"))  # starting paper balance
     trade_notional_usd: float = float(os.getenv("TRADE_NOTIONAL_USD", "50"))
     trade_max_positions: int = int(os.getenv("TRADE_MAX_POSITIONS", "3"))
     trade_max_exposure_usd: float = float(os.getenv("TRADE_MAX_EXPOSURE_USD", "500"))

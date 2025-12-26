@@ -11,6 +11,45 @@ from .signal_types import Signal
 from .blofin_client import BlofinClient
 import os
 
+try:
+    import orjson
+except ImportError:
+    import json as orjson  # type: ignore
+
+
+def load_paper_balance_from_metrics() -> tuple[float, float, float]:
+    """
+    Read the last balance metric from the metrics file.
+    Returns: (balance, starting_balance, realized_pnl)
+    Falls back to config defaults if not found.
+    """
+    try:
+        metrics_path = os.path.join(CONFIG.metrics_dir, "metrics.jsonl")
+        if not os.path.exists(metrics_path):
+            return float(CONFIG.paper_balance), float(CONFIG.paper_balance), 0.0
+        
+        last_balance = None
+        with open(metrics_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    ev = orjson.loads(line)
+                    if ev.get("kind") == "balance" and ev.get("mode") == "paper":
+                        last_balance = ev
+                except Exception:
+                    continue
+        
+        if last_balance:
+            balance = float(last_balance.get("balance", CONFIG.paper_balance))
+            starting = float(last_balance.get("starting", CONFIG.paper_balance))
+            pnl = float(last_balance.get("pnl", 0.0))
+            return balance, starting, pnl
+    except Exception:
+        pass
+    
+    return float(CONFIG.paper_balance), float(CONFIG.paper_balance), 0.0
+
 
 @dataclass
 class Position:
@@ -20,18 +59,25 @@ class Position:
     entry: float
     notional: float
     opened_ts: int
+    tp: Optional[float] = None  # take-profit price
+    sl: Optional[float] = None  # stop-loss price
+    mark: Optional[float] = None  # current mark price
 
 
 class PaperBroker:
     """
-    Minimal paper broker: immediate fills at signal price +/- slippage.
-    - Records faux fills to metrics: kind="paper_fill"
-    - Maintains positions until closed by opposite signal
+    Paper broker with full position lifecycle management.
+    - Immediate fills at signal price +/- slippage (kind="paper_fill")
+    - TP/SL monitoring against live prices (kind="paper_close")
+    - Mark-to-market updates from live price feed
     """
 
-    def __init__(self, slippage_bps: float = 8.0):
+    def __init__(self, slippage_bps: float = 8.0, starting_balance: float = 10000.0):
         self.slippage = float(slippage_bps)
         self.positions: Dict[str, Position] = {}
+        self.balance = float(starting_balance)
+        self.starting_balance = float(starting_balance)
+        self.realized_pnl = 0.0
 
     def _apply_slippage(self, price: float, side: str) -> float:
         bps = self.slippage / 10000.0
@@ -40,11 +86,32 @@ class PaperBroker:
         else:
             return price * (1.0 - bps)
 
-    def market(self, symbol: str, side: str, notional_usd: float, ref_price: float) -> Position:
+    def open_position(
+        self,
+        symbol: str,
+        side: str,
+        notional_usd: float,
+        ref_price: float,
+        tp: Optional[float] = None,
+        sl: Optional[float] = None,
+    ) -> Position:
+        """Open a paper position with optional TP/SL levels."""
         px = self._apply_slippage(ref_price, side)
         qty = max(notional_usd, 0.0) / max(px, 1e-9)
-        pos = Position(symbol=symbol, side=side, qty=qty, entry=px, notional=notional_usd, opened_ts=int(time.time()))
-        # replace existing opposite position (flat then open)
+        pos = Position(
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            entry=px,
+            notional=notional_usd,
+            opened_ts=int(time.time()),
+            tp=tp,
+            sl=sl,
+            mark=px,
+        )
+        # Close existing position if any (flat first)
+        if symbol in self.positions:
+            self.close_position(symbol, px, reason="replaced")
         self.positions[symbol] = pos
         emit_metric("paper_fill", {
             "symbol": symbol,
@@ -52,8 +119,82 @@ class PaperBroker:
             "price": px,
             "qty": qty,
             "notional": notional_usd,
+            "tp": tp,
+            "sl": sl,
         })
         return pos
+
+    def market(self, symbol: str, side: str, notional_usd: float, ref_price: float) -> Position:
+        """Legacy method for compatibility - opens position without TP/SL."""
+        return self.open_position(symbol, side, notional_usd, ref_price)
+
+    def close_position(self, symbol: str, exit_price: float, reason: str = "manual") -> Optional[Dict[str, Any]]:
+        """Close a paper position and emit paper_close metric."""
+        if symbol not in self.positions:
+            return None
+        pos = self.positions.pop(symbol)
+        # Calculate PnL
+        if pos.side == "buy":
+            pnl = (exit_price - pos.entry) * pos.qty
+        else:
+            pnl = (pos.entry - exit_price) * pos.qty
+        pnl_pct = (pnl / pos.notional) * 100 if pos.notional > 0 else 0.0
+        # Update balance and realized PnL
+        self.realized_pnl += pnl
+        self.balance += pnl
+        emit_metric("paper_close", {
+            "symbol": symbol,
+            "side": pos.side,
+            "entry": pos.entry,
+            "exit": exit_price,
+            "qty": pos.qty,
+            "notional": pos.notional,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+            "reason": reason,
+            "duration_sec": int(time.time()) - pos.opened_ts,
+            "balance": self.balance,
+        })
+        return {"symbol": symbol, "pnl": pnl, "pnl_pct": pnl_pct, "reason": reason}
+
+    def update_marks(self, prices: Dict[str, float]) -> None:
+        """Update mark prices for all open positions."""
+        for sym, pos in self.positions.items():
+            if sym in prices:
+                pos.mark = prices[sym]
+
+    def check_tpsl(self, prices: Dict[str, float]) -> list:
+        """Check all positions against live prices, close if TP/SL hit."""
+        closed = []
+        for sym in list(self.positions.keys()):
+            pos = self.positions.get(sym)
+            if not pos:
+                continue
+            px = prices.get(sym)
+            if not px or px <= 0:
+                continue
+            # Update mark
+            pos.mark = px
+            # Check SL first (higher priority)
+            if pos.sl:
+                hit_sl = (pos.side == "buy" and px <= pos.sl) or (pos.side == "sell" and px >= pos.sl)
+                if hit_sl:
+                    result = self.close_position(sym, px, reason="sl_hit")
+                    if result:
+                        closed.append(result)
+                    continue
+            # Check TP
+            if pos.tp:
+                hit_tp = (pos.side == "buy" and px >= pos.tp) or (pos.side == "sell" and px <= pos.tp)
+                if hit_tp:
+                    result = self.close_position(sym, px, reason="tp_hit")
+                    if result:
+                        closed.append(result)
+        return closed
+
+    def get_exposure(self) -> float:
+        """Calculate total notional exposure from open positions."""
+        return sum(p.notional for p in self.positions.values())
 
 
 class AutoTrader:
@@ -74,7 +215,16 @@ class AutoTrader:
         self.max_exposure = float(CONFIG.trade_max_exposure_usd)
         self._last_trade_ts: Dict[str, int] = {}
         self._exposure = 0.0
-        self.broker = PaperBroker(CONFIG.order_slippage_bps)
+        # Initialize paper broker with persisted balance if available
+        if self.paper:
+            bal, starting, pnl = load_paper_balance_from_metrics()
+            self.broker = PaperBroker(CONFIG.order_slippage_bps, starting)
+            self.broker.balance = bal
+            self.broker.realized_pnl = pnl
+            if bal != starting:
+                print(f"[paper] Restored balance: ${bal:.2f} (starting: ${starting:.2f}, realized PnL: ${pnl:.2f})")
+        else:
+            self.broker = PaperBroker(CONFIG.order_slippage_bps, CONFIG.paper_balance)
         # Serialize live order placement to avoid overcommitting balance
         self._order_lock: asyncio.Lock = asyncio.Lock()
 
@@ -209,7 +359,12 @@ class AutoTrader:
                 except Exception:
                     pass
             return None
-        side = s.side
+        side = s.side.lower() if isinstance(s.side, str) else s.side
+        # Normalize: 'long' -> 'buy', 'short' -> 'sell'
+        if side == "long":
+            side = "buy"
+        elif side == "short":
+            side = "sell"
         plan = self._plan_risk(s)
         try:
             emit_metric("risk_plan", {"symbol": s.symbol, "plan": plan, "score": s.score, "prob": s.prob})
@@ -217,7 +372,72 @@ class AutoTrader:
             pass
         # Choose broker: paper or real
         if self.paper:
-            pos = self.broker.market(s.symbol, side, float(plan["notional_usd"]), s.price)
+            # Calculate TP/SL for paper positions using same logic as real trading
+            entry_px = s.price
+            tp_price = None
+            sl_price = None
+            if CONFIG.enable_tpsl:
+                atr_pct = None
+                # Try to get ATR from signal meta (same as real trading)
+                if CONFIG.enable_smart_tpsl and CONFIG.tpsl_mode == "atr":
+                    try:
+                        if isinstance(s.meta, Mapping):
+                            features = s.meta.get("features")
+                            if isinstance(features, Mapping):
+                                v_atr = features.get("atr14_pct")
+                                if v_atr is not None:
+                                    atr_pct = float(v_atr)
+                    except Exception:
+                        atr_pct = None
+
+                if atr_pct and atr_pct > 0:
+                    # ATR-based TP/SL (smart mode)
+                    r_mult = float(CONFIG.atr_sl_mult)
+                    # Apply regime scaling if enabled
+                    try:
+                        if CONFIG.regime_scale_risk and isinstance(s.meta, Mapping):
+                            rm = float(s.meta.get("regime_mult", 1.0))
+                            r_mult *= max(0.7, min(1.3, rm))
+                    except Exception:
+                        pass
+                    # Clamp ATR if bounds configured
+                    atr_eff = atr_pct
+                    try:
+                        if getattr(CONFIG, 'atr_tpsl_min_pct', 0.0) > 0 and atr_eff < CONFIG.atr_tpsl_min_pct:
+                            atr_eff = float(CONFIG.atr_tpsl_min_pct)
+                        if getattr(CONFIG, 'atr_tpsl_max_pct', 0.0) > 0 and atr_eff > CONFIG.atr_tpsl_max_pct:
+                            atr_eff = float(CONFIG.atr_tpsl_max_pct)
+                    except Exception:
+                        pass
+                    R = atr_eff * entry_px * r_mult
+                    lvl = s.level if CONFIG.use_signal_level else None
+                    if side == "buy":
+                        raw_sl = entry_px - R
+                        if lvl:
+                            buf = entry_px * (CONFIG.level_buffer_bps / 10000.0)
+                            raw_sl = min(raw_sl, float(lvl) - buf)
+                        sl_price = raw_sl
+                        tp_price = entry_px + (CONFIG.atr_tp1_mult * R)
+                    else:
+                        raw_sl = entry_px + R
+                        if lvl:
+                            buf = entry_px * (CONFIG.level_buffer_bps / 10000.0)
+                            raw_sl = max(raw_sl, float(lvl) + buf)
+                        sl_price = raw_sl
+                        tp_price = entry_px - (CONFIG.atr_tp1_mult * R)
+                else:
+                    # Fallback to simple BPS mode
+                    tp_bps = float(CONFIG.tp_bps) / 10000.0
+                    sl_bps = float(CONFIG.sl_bps) / 10000.0
+                    if side == "buy":
+                        tp_price = entry_px * (1.0 + tp_bps)
+                        sl_price = entry_px * (1.0 - sl_bps)
+                    else:
+                        tp_price = entry_px * (1.0 - tp_bps)
+                        sl_price = entry_px * (1.0 + sl_bps)
+            pos = self.broker.open_position(
+                s.symbol, side, float(plan["notional_usd"]), s.price, tp=tp_price, sl=sl_price
+            )
         else:
             # fire-and-forget async order to avoid blocking the event loop caller
             try:
@@ -239,8 +459,7 @@ class AutoTrader:
         # Update exposure only for paper immediately (live exposure is refreshed via WS/REST)
         if self.paper:
             try:
-                # approximate exposure as sum of paper positions' notionals
-                self._exposure = sum(p.notional for p in self.broker.positions.values())
+                self._exposure = self.broker.get_exposure()
             except Exception:
                 pass
         self._last_trade_ts[s.symbol] = int(time.time())

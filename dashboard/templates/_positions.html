@@ -27,8 +27,11 @@
     {% endif %}
   </td>
   <td class="num">{{ "%.4f"|format(p.size or 0) }}</td>
+  <td class="num text-xs">${{ "%.2f"|format(p.notional or 0) }}</td>
   <td class="num text-xs">{{ "%.4f"|format(p.entry or 0) if p.entry else "-" }}</td>
-  <td class="num text-xs">{{ "%.4f"|format(p.mark or 0) if p.mark else "-" }}</td>
+  <td class="num text-xs mark-cell" data-symbol="{{ p.symbol }}" data-mark="{{ p.mark or 0 }}">{{ "%.4f"|format(p.mark
+    or 0) if p.mark else "-" }}</td>
+  <td class="num text-xs">{{ "%.4f"|format(p.tp or 0) if p.tp else "-" }}</td>
   <td class="num text-xs">{{ "%.4f"|format(p.sl or 0) if p.sl else "-" }}</td>
   <td class="num">
     {% if p.pnl_u and p.pnl_u > 0 %}
@@ -40,8 +43,31 @@
   </td>
 </tr>
 {% endfor %}
+<script>
+  (function () {
+    // Compare with previous marks and flash
+    const cells = document.querySelectorAll('.mark-cell');
+    if (!window._prevMarks) window._prevMarks = {};
+    cells.forEach(cell => {
+      const sym = cell.dataset.symbol;
+      const mark = parseFloat(cell.dataset.mark) || 0;
+      const prev = window._prevMarks[sym];
+      if (prev !== undefined && mark !== prev) {
+        cell.classList.remove('flash-green', 'flash-red');
+        if (mark > prev) {
+          cell.classList.add('flash-green');
+        } else {
+          cell.classList.add('flash-red');
+        }
+        // Remove flash after animation
+        setTimeout(() => cell.classList.remove('flash-green', 'flash-red'), 600);
+      }
+      window._prevMarks[sym] = mark;
+    });
+  })();
+</script>
 {% else %}
 <tr>
-  <td colspan="8" class="text-gray-500">No open positions.</td>
+  <td colspan="10" class="text-gray-500">No open positions.</td>
 </tr>
 {% endif %}

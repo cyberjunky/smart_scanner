@@ -50,6 +50,12 @@
 </tr>
 {% endif %}
 {% endfor %}
+<tr>
+  <td colspan="7" class="text-center text-xs py-2">
+    <span class="text-gray-500">Showing all {{ total }} events</span>
+    <button class="ml-2 text-primary hover:underline" onclick="showLessOrders()">Show less</button>
+  </td>
+</tr>
 {% else %}
 {% for o in orders[:page_size] %}
 {% if o.kind != 'exposure' or (o.symbol or o.instId) %}

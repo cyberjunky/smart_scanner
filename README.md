@@ -64,6 +64,7 @@ Environment file: `smart_scanner/.env` (or export vars). Auto-loaded if `python-
 |----------|-------------|
 | `ENABLE_AUTOTRADE` | Set `1` to route signals to the trader |
 | `PAPER_TRADING` | Set `1` for testing, `0` for live |
+| `PAPER_BALANCE` | Starting paper balance in USD (default: 10000) |
 | `TRADE_NOTIONAL_USD` | Position size in USD |
 | `TRADE_MIN_SCORE` | Minimum signal score threshold |
 | `TRADE_MIN_PROB` | Minimum probability threshold |
