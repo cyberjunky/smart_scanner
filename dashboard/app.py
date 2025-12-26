@@ -197,6 +197,17 @@ def api_summary():
                 last_pos_ts = t
     except Exception:
         pass
+    
+    # Extract regime info from latest signal's meta
+    regime_mult = 0.0
+    try:
+        if signals:
+            meta = signals[-1].get("meta") or {}
+            if isinstance(meta, dict):
+                regime_mult = float(meta.get("regime_mult", 0.0))
+    except Exception:
+        pass
+    
     out = {
         "signals": len(signals),
         "orders": len(orders),
@@ -206,6 +217,7 @@ def api_summary():
         "last_error_ts": _ts(errors),
         "last_position_ts": last_pos_ts,
         "server_now": time.time(),
+        "regime_mult": regime_mult,
     }
     return JSONResponse(out)
 

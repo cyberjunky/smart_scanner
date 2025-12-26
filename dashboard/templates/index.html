@@ -87,32 +87,37 @@
 
   <main class="p-4 mx-auto">
     <!-- KPI summary -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4" hx-get="/partials/summary" hx-trigger="load, every 3s"
-      hx-target="#summary" hx-swap="outerHTML">
-      <div id="summary" class="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+    <div class="mb-4" hx-get="/partials/summary" hx-trigger="load, every 3s" hx-target="#summary" hx-swap="outerHTML">
+      <div id="summary" class="flex flex-nowrap gap-3 w-full">
         <!-- The server will replace this whole block with _summary.html -->
-        <div class="card bg-base-200 shadow">
-          <div class="card-body">
-            <h2 class="card-title">Signals</h2>
-            <div class="text-2xl font-semibold">—</div>
+        <div class="card bg-base-200 shadow flex-1">
+          <div class="card-body p-2">
+            <h2 class="text-xs text-gray-400">Signals</h2>
+            <div class="text-lg font-semibold">—</div>
           </div>
         </div>
-        <div class="card bg-base-200 shadow">
-          <div class="card-body">
-            <h2 class="card-title">Orders</h2>
-            <div class="text-2xl font-semibold">—</div>
+        <div class="card bg-base-200 shadow flex-1">
+          <div class="card-body p-2">
+            <h2 class="text-xs text-gray-400">Orders</h2>
+            <div class="text-lg font-semibold">—</div>
           </div>
         </div>
-        <div class="card bg-base-200 shadow">
-          <div class="card-body">
-            <h2 class="card-title">Errors</h2>
-            <div class="text-2xl font-semibold">—</div>
+        <div class="card bg-base-200 shadow flex-1">
+          <div class="card-body p-2">
+            <h2 class="text-xs text-gray-400">Errors</h2>
+            <div class="text-lg font-semibold">—</div>
           </div>
         </div>
-        <div class="card bg-base-200 shadow">
-          <div class="card-body">
-            <h2 class="card-title">Last Update</h2>
-            <div class="text-2xl font-semibold">—</div>
+        <div class="card bg-base-200 shadow flex-1">
+          <div class="card-body p-2">
+            <h2 class="text-xs text-gray-400">Last Update</h2>
+            <div class="text-lg font-semibold">—</div>
+          </div>
+        </div>
+        <div class="card bg-base-200 shadow flex-1">
+          <div class="card-body p-2">
+            <h2 class="text-xs text-gray-400">Regime (BTC)</h2>
+            <div class="text-lg font-semibold text-gray-400">—</div>
           </div>
         </div>
       </div>
@@ -277,10 +282,10 @@
             <div class="flex justify-between items-center">
               <h2 class="card-title">Signal Details</h2>
               <button class="btn btn-sm btn-ghost"
-                onclick="document.getElementById('signal-details').innerHTML='<div class=\'text-gray-400 text-center py-4\'>Click a signal to view details</div>'">Clear</button>
+                onclick="document.getElementById('signal-details').innerHTML='<div class=\'text-gray-500 text-sm\'>Click a signal to view details</div>'">Clear</button>
             </div>
             <div id="signal-details" class="overflow-auto max-h-64 text-xs">
-              <div class="text-gray-400 text-center py-4">Click a signal to view details</div>
+              <div class="text-gray-500 text-sm">Click a signal to view details</div>
             </div>
           </div>
         </div>
