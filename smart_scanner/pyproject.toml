@@ -18,11 +18,88 @@ dependencies = [
   "rich>=13"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "codespell>=2.2.0",
+]
+
 [tool.setuptools]
 packages = { find = {} }
 
-# Optional: include non-code files if you add any (configs, templates)
 [tool.setuptools.package-data]
 smart_scanner = ["*.json", "*.yaml", "*.yml"]
 
-# Editable install metadata (pip install -e .) will just work.
+# ============= Ruff =============
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+exclude = [
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    ".venv",
+    "venv",
+    ".env",
+    ".env.local",
+    "artifacts",
+    "dashboard/static",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific rules
+    "PIE",    # flake8-pie (misc lints)
+    "PT",     # flake8-pytest-style
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "B905",   # zip() without explicit strict= parameter
+    "SIM102", # Use a single if statement instead of nested if statements
+    "SIM108", # Use ternary operator (often less readable)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["smart_scanner"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PT"]  # Relax pytest style in tests
+
+# ============= MyPy =============
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+strict_optional = true
+check_untyped_defs = true
+exclude = [
+    ".venv",
+    "venv",
+    ".env",
+    ".env.local",
+    "artifacts",
+]
+
+# ============= Pytest =============
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+# ============= Codespell =============
+[tool.codespell]
+skip = ".venv,venv,.git,__pycache__,*.pyc,artifacts,dashboard/static"
+ignore-words-list = "nd,ot"

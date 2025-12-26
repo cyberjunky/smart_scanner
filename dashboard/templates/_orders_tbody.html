@@ -1,5 +1,6 @@
 {% if orders and orders|length %}
 {% for o in orders %}
+{% if o.kind != 'exposure' or (o.symbol or o.instId) %}
 <tr class="hover:bg-base-300">
   <td class="text-xs text-gray-400">{{ o.ts|ago }}</td>
   <td>
@@ -19,6 +20,7 @@
   <td class="num text-xs">{{ "%.4f"|format(o.price or 0) if o.price else "-" }}</td>
   <td class="text-xs text-gray-400">{{ o.msg or o.reason or o.details or "-" }}</td>
 </tr>
+{% endif %}
 {% endfor %}
 {% else %}
 <tr>
